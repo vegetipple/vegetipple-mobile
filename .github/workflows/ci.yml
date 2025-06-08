@@ -19,26 +19,21 @@ jobs:
       with:
         node-version: '20'
         cache: 'npm'
-        cache-dependency-path: vegetipple-mobile/package-lock.json
+        cache-dependency-path: package-lock.json
         
     - name: Install dependencies
-      working-directory: vegetipple-mobile
       run: npm ci
       
     - name: Lint code
-      working-directory: vegetipple-mobile
       run: npm run lint || echo "Linting completed with warnings"
       
     - name: Run tests
-      working-directory: vegetipple-mobile
       run: npm test -- --watch=false --browsers=ChromeHeadless
       
     - name: Build app
-      working-directory: vegetipple-mobile
       run: npm run build
       
     - name: Verify build output
-      working-directory: vegetipple-mobile
       run: |
         if [ ! -d "www" ]; then
           echo "❌ Build failed - www directory not created"
@@ -51,7 +46,6 @@ jobs:
         echo "✅ Build verification passed"
         
     - name: Check bundle size
-      working-directory: vegetipple-mobile
       run: |
         # Check if main bundle is reasonable size (under 2MB)
         MAIN_BUNDLE=$(find www -name "main.*.js" -type f)

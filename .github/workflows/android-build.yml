@@ -18,7 +18,7 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-        
+      
     - name: Update app version (if triggered by tag or manual input)
       if: startsWith(github.ref, 'refs/tags/') || github.event.inputs.version != ''
       run: |
@@ -135,6 +135,7 @@ jobs:
     - name: Create GitHub Release
       if: startsWith(github.ref, 'refs/tags/')
       uses: actions/create-release@v1
+      id: create_release
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
