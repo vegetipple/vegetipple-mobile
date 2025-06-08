@@ -26,37 +26,35 @@ jobs:
         cache: 'npm'
         cache-dependency-path: vegetipple-mobile/package-lock.json
         
-    - name: Setup Java JDK
-      uses: actions/setup-java@v4
-      with:
-        distribution: 'temurin'
-        java-version: '17'
-        
-    - name: Setup Android SDK
-      uses: android-actions/setup-android@v3
-      with:
-        api-level: 34
-        build-tools: 34.0.0
-        
-    - name: Install dependencies
+    - name: Build Android app with Docker
       working-directory: vegetipple-mobile
       run: |
-        npm ci
+        # Build the Docker image
+        docker build -t vegetipple-android-builder .
         
-    - name: Build Ionic app
-      working-directory: vegetipple-mobile
-      run: |
-        npm run build --prod
+        # Create output directory
+        mkdir -p build-output
         
-    - name: Add Android platform
-      working-directory: vegetipple-mobile
-      run: |
-        npx cap add android || echo "Android platform already exists"
-        
-    - name: Sync Capacitor
-      working-directory: vegetipple-mobile
-      run: |
-        npx cap sync android
+        # Run Docker container and build APKs/AAB
+        docker run --rm \
+          -v "$(pwd)/build-output:/output" \
+          vegetipple-android-builder \
+          bash -c "
+            # Build debug APK
+            ./android/gradlew -p android assembleDebug && \
+            cp android/app/build/outputs/apk/debug/app-debug.apk /output/ && \
+            echo 'Debug APK built successfully' && \
+            
+            # Build release APK
+            ./android/gradlew -p android assembleRelease && \
+            cp android/app/build/outputs/apk/release/app-release-unsigned.apk /output/ && \
+            echo 'Release APK built successfully' && \
+            
+            # Build release AAB
+            ./android/gradlew -p android bundleRelease && \
+            cp android/app/build/outputs/bundle/release/app-release.aab /output/ && \
+            echo 'Release AAB built successfully'
+          "
         
     - name: Update app version
       working-directory: vegetipple-mobile
@@ -85,25 +83,9 @@ jobs:
           sed -i "s/versionName \".*\"/versionName \"$VERSION\"/" $ANDROID_DIR/build.gradle
         fi
         
-    - name: Build debug APK
-      working-directory: vegetipple-mobile/android
-      run: |
-        chmod +x gradlew
-        ./gradlew assembleDebug
-        
-    - name: Build release APK (unsigned)
-      working-directory: vegetipple-mobile/android
-      run: |
-        ./gradlew assembleRelease
-        
-    - name: Build release AAB (unsigned)
-      working-directory: vegetipple-mobile/android
-      run: |
-        ./gradlew bundleRelease
-        
     - name: Sign release APK
       if: env.KEYSTORE_BASE64 != ''
-      working-directory: vegetipple-mobile/android
+      working-directory: vegetipple-mobile
       env:
         KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
         KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
@@ -118,25 +100,25 @@ jobs:
           -keystore release-key.keystore \
           -storepass $KEYSTORE_PASSWORD \
           -keypass $KEY_PASSWORD \
-          app/build/outputs/apk/release/app-release-unsigned.apk \
+          build-output/app-release-unsigned.apk \
           $KEY_ALIAS
           
         # Align APK
-        zipalign -v 4 app/build/outputs/apk/release/app-release-unsigned.apk \
-          app/build/outputs/apk/release/app-release-signed.apk
+        zipalign -v 4 build-output/app-release-unsigned.apk \
+          build-output/app-release-signed.apk
         
     - name: Upload debug APK
       uses: actions/upload-artifact@v4
       with:
         name: vegetipple-debug-apk
-        path: vegetipple-mobile/android/app/build/outputs/apk/debug/app-debug.apk
+        path: vegetipple-mobile/build-output/app-debug.apk
         retention-days: 30
         
     - name: Upload release APK (unsigned)
       uses: actions/upload-artifact@v4
       with:
         name: vegetipple-release-apk-unsigned
-        path: vegetipple-mobile/android/app/build/outputs/apk/release/app-release-unsigned.apk
+        path: vegetipple-mobile/build-output/app-release-unsigned.apk
         retention-days: 30
         
     - name: Upload release APK (signed)
@@ -144,14 +126,14 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: vegetipple-release-apk-signed
-        path: vegetipple-mobile/android/app/build/outputs/apk/release/app-release-signed.apk
+        path: vegetipple-mobile/build-output/app-release-signed.apk
         retention-days: 30
         
     - name: Upload release AAB
       uses: actions/upload-artifact@v4
       with:
         name: vegetipple-release-aab
-        path: vegetipple-mobile/android/app/build/outputs/bundle/release/app-release.aab
+        path: vegetipple-mobile/build-output/app-release.aab
         retention-days: 30
         
     - name: Create GitHub Release
@@ -197,6 +179,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: vegetipple-mobile/android/app/build/outputs/apk/release/app-release-unsigned.apk
+        asset_path: vegetipple-mobile/build-output/app-release-unsigned.apk
         asset_name: vegetipple-${{ github.ref_name }}-release.apk
         asset_content_type: application/vnd.android.package-archive
