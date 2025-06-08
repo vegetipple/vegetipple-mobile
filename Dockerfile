@@ -51,13 +51,14 @@ RUN npm run build
 # Sync Capacitor
 RUN npx cap sync android
 
-# Make gradlew executable
-RUN chmod +x android/gradlew
+# Debug: List android directory contents
+RUN ls -la android/
 
-# Configure Gradle to use Java 21
+# Configure Gradle to use Java 21 and make gradlew executable if it exists
 RUN echo "org.gradle.java.home=/usr/lib/jvm/java-21-openjdk-amd64" > android/gradle.properties && \
     echo "org.gradle.jvmargs=-Xmx1536m" >> android/gradle.properties && \
-    echo "android.useAndroidX=true" >> android/gradle.properties
+    echo "android.useAndroidX=true" >> android/gradle.properties && \
+    if [ -f android/gradlew ]; then chmod +x android/gradlew; echo "Made gradlew executable"; else echo "gradlew not found, will be auto-downloaded"; fi
 
 # Build Android APK
-CMD ["./android/gradlew", "-p", "android", "assembleDebug"]
+CMD ["bash", "-c", "cd android && chmod +x gradlew 2>/dev/null || true && ./gradlew assembleDebug"]

@@ -20,19 +20,21 @@ docker run --rm \
     -v "$(pwd)/build-output:/output" \
     vegetipple-android-builder \
     bash -c "
+        cd android && chmod +x gradlew 2>/dev/null || true && \
+        
         # Build debug APK
-        ./android/gradlew -p android assembleDebug && \
-        cp android/app/build/outputs/apk/debug/app-debug.apk /output/ && \
+        ./gradlew assembleDebug && \
+        cp app/build/outputs/apk/debug/app-debug.apk /output/ && \
         echo 'Debug APK built successfully' && \
         
         # Build release APK
-        ./android/gradlew -p android assembleRelease && \
-        cp android/app/build/outputs/apk/release/app-release-unsigned.apk /output/ && \
+        ./gradlew assembleRelease && \
+        cp app/build/outputs/apk/release/app-release-unsigned.apk /output/ && \
         echo 'Release APK built successfully' && \
         
         # Build release AAB
-        ./android/gradlew -p android bundleRelease && \
-        cp android/app/build/outputs/bundle/release/app-release.aab /output/ && \
+        ./gradlew bundleRelease && \
+        cp app/build/outputs/bundle/release/app-release.aab /output/ && \
         echo 'Release AAB built successfully'
     "
 

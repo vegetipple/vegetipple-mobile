@@ -20,8 +20,9 @@ docker run --rm \
     -v "$(pwd)/build-output:/output" \
     vegetipple-android-builder \
     bash -c "
-        ./android/gradlew -p android assembleDebug && \
-        cp android/app/build/outputs/apk/debug/app-debug.apk /output/ && \
+        cd android && chmod +x gradlew 2>/dev/null || true && \
+        ./gradlew assembleDebug && \
+        cp app/build/outputs/apk/debug/app-debug.apk /output/ && \
         echo 'APK built successfully and copied to build-output/app-debug.apk'
     "
 
