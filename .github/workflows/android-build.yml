@@ -1,0 +1,202 @@
+name: Android Build
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to build (e.g., v1.0.0)'
+        required: true
+        default: 'v1.0.0'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: vegetipple-mobile/package-lock.json
+        
+    - name: Setup Java JDK
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+        
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+      with:
+        api-level: 34
+        build-tools: 34.0.0
+        
+    - name: Install dependencies
+      working-directory: vegetipple-mobile
+      run: |
+        npm ci
+        
+    - name: Build Ionic app
+      working-directory: vegetipple-mobile
+      run: |
+        npm run build --prod
+        
+    - name: Add Android platform
+      working-directory: vegetipple-mobile
+      run: |
+        npx cap add android || echo "Android platform already exists"
+        
+    - name: Sync Capacitor
+      working-directory: vegetipple-mobile
+      run: |
+        npx cap sync android
+        
+    - name: Update app version
+      working-directory: vegetipple-mobile
+      run: |
+        # Extract version from tag (remove 'v' prefix)
+        VERSION=${GITHUB_REF#refs/tags/v}
+        if [ -z "$VERSION" ]; then
+          VERSION=${{ github.event.inputs.version }}
+          VERSION=${VERSION#v}
+        fi
+        
+        # Update package.json version
+        npm version $VERSION --no-git-tag-version
+        
+        # Update Android version
+        ANDROID_DIR="android/app"
+        if [ -f "$ANDROID_DIR/build.gradle" ]; then
+          # Calculate version code (assuming semantic versioning)
+          MAJOR=$(echo $VERSION | cut -d. -f1)
+          MINOR=$(echo $VERSION | cut -d. -f2)
+          PATCH=$(echo $VERSION | cut -d. -f3)
+          VERSION_CODE=$((MAJOR * 10000 + MINOR * 100 + PATCH))
+          
+          # Update build.gradle
+          sed -i "s/versionCode [0-9]*/versionCode $VERSION_CODE/" $ANDROID_DIR/build.gradle
+          sed -i "s/versionName \".*\"/versionName \"$VERSION\"/" $ANDROID_DIR/build.gradle
+        fi
+        
+    - name: Build debug APK
+      working-directory: vegetipple-mobile/android
+      run: |
+        chmod +x gradlew
+        ./gradlew assembleDebug
+        
+    - name: Build release APK (unsigned)
+      working-directory: vegetipple-mobile/android
+      run: |
+        ./gradlew assembleRelease
+        
+    - name: Build release AAB (unsigned)
+      working-directory: vegetipple-mobile/android
+      run: |
+        ./gradlew bundleRelease
+        
+    - name: Sign release APK
+      if: env.KEYSTORE_BASE64 != ''
+      working-directory: vegetipple-mobile/android
+      env:
+        KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+        KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+      run: |
+        # Decode keystore
+        echo $KEYSTORE_BASE64 | base64 -d > release-key.keystore
+        
+        # Sign APK
+        jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 \
+          -keystore release-key.keystore \
+          -storepass $KEYSTORE_PASSWORD \
+          -keypass $KEY_PASSWORD \
+          app/build/outputs/apk/release/app-release-unsigned.apk \
+          $KEY_ALIAS
+          
+        # Align APK
+        zipalign -v 4 app/build/outputs/apk/release/app-release-unsigned.apk \
+          app/build/outputs/apk/release/app-release-signed.apk
+        
+    - name: Upload debug APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: vegetipple-debug-apk
+        path: vegetipple-mobile/android/app/build/outputs/apk/debug/app-debug.apk
+        retention-days: 30
+        
+    - name: Upload release APK (unsigned)
+      uses: actions/upload-artifact@v4
+      with:
+        name: vegetipple-release-apk-unsigned
+        path: vegetipple-mobile/android/app/build/outputs/apk/release/app-release-unsigned.apk
+        retention-days: 30
+        
+    - name: Upload release APK (signed)
+      if: env.KEYSTORE_BASE64 != ''
+      uses: actions/upload-artifact@v4
+      with:
+        name: vegetipple-release-apk-signed
+        path: vegetipple-mobile/android/app/build/outputs/apk/release/app-release-signed.apk
+        retention-days: 30
+        
+    - name: Upload release AAB
+      uses: actions/upload-artifact@v4
+      with:
+        name: vegetipple-release-aab
+        path: vegetipple-mobile/android/app/build/outputs/bundle/release/app-release.aab
+        retention-days: 30
+        
+    - name: Create GitHub Release
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref_name }}
+        release_name: Vegetipple Mobile ${{ github.ref_name }}
+        draft: false
+        prerelease: false
+        body: |
+          ## Vegetipple Mobile ${{ github.ref_name }}
+          
+          ### 📱 Android App Release
+          
+          **Download Options:**
+          - **Debug APK**: For testing and development
+          - **Release APK**: Production-ready (unsigned)
+          - **Release AAB**: For Google Play Store deployment
+          
+          ### 🚀 What's New
+          - Vegan drink database with search functionality
+          - Real-time suggestions and filtering
+          - Company information and external links
+          - Native Android performance
+          
+          ### 📋 Installation
+          1. Download the appropriate APK file
+          2. Enable "Install from unknown sources" on your Android device
+          3. Install the APK file
+          
+          ### 🔧 For Developers
+          - Built with Ionic + Capacitor
+          - SQLite database integration
+          - Ready for Google Play Store submission (use AAB file)
+          
+    - name: Upload release assets
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: vegetipple-mobile/android/app/build/outputs/apk/release/app-release-unsigned.apk
+        asset_name: vegetipple-${{ github.ref_name }}-release.apk
+        asset_content_type: application/vnd.android.package-archive

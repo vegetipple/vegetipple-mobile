@@ -1,0 +1,67 @@
+name: Continuous Integration
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: vegetipple-mobile/package-lock.json
+        
+    - name: Install dependencies
+      working-directory: vegetipple-mobile
+      run: npm ci
+      
+    - name: Lint code
+      working-directory: vegetipple-mobile
+      run: npm run lint || echo "Linting completed with warnings"
+      
+    - name: Run tests
+      working-directory: vegetipple-mobile
+      run: npm test -- --watch=false --browsers=ChromeHeadless
+      
+    - name: Build app
+      working-directory: vegetipple-mobile
+      run: npm run build
+      
+    - name: Verify build output
+      working-directory: vegetipple-mobile
+      run: |
+        if [ ! -d "www" ]; then
+          echo "❌ Build failed - www directory not created"
+          exit 1
+        fi
+        if [ ! -f "www/index.html" ]; then
+          echo "❌ Build failed - index.html not found"
+          exit 1
+        fi
+        echo "✅ Build verification passed"
+        
+    - name: Check bundle size
+      working-directory: vegetipple-mobile
+      run: |
+        # Check if main bundle is reasonable size (under 2MB)
+        MAIN_BUNDLE=$(find www -name "main.*.js" -type f)
+        if [ -f "$MAIN_BUNDLE" ]; then
+          SIZE=$(stat -f%z "$MAIN_BUNDLE" 2>/dev/null || stat -c%s "$MAIN_BUNDLE")
+          SIZE_MB=$((SIZE / 1024 / 1024))
+          echo "Main bundle size: ${SIZE_MB}MB"
+          if [ $SIZE -gt 2097152 ]; then
+            echo "⚠️  Warning: Main bundle is larger than 2MB"
+          else
+            echo "✅ Bundle size is acceptable"
+          fi
+        fi

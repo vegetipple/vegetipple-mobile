@@ -1,0 +1,135 @@
+<ion-header [translucent]="true">
+  <ion-toolbar color="primary">
+    <ion-title>
+      🌱 Vegetipple
+    </ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+  <div class="header-section">
+    <div class="logo-container">
+      <h1>🌱 Vegetipple</h1>
+      <p class="tagline">Discover if your drinks are vegan-friendly</p>
+    </div>
+  </div>
+
+  <div class="search-section">
+    <ion-searchbar 
+      [(ngModel)]="searchQuery"
+      (ionInput)="onSearchInput($event)"
+      (ionFocus)="onSearchFocus()"
+      placeholder="Search for drinks, brands, or companies..."
+      show-clear-button="focus"
+      debounce="300">
+    </ion-searchbar>
+
+    <!-- Suggestions dropdown -->
+    <ion-list *ngIf="showSuggestions && suggestions.length > 0" class="suggestions-list">
+      <ion-item 
+        *ngFor="let suggestion of suggestions"
+        button
+        (click)="selectSuggestion(suggestion)">
+        <div class="suggestion-content">
+          <div class="suggestion-name">{{ suggestion.productname }}</div>
+          <div class="suggestion-company">by {{ suggestion.companyname }}</div>
+          <ion-badge class="suggestion-type">{{ suggestion.type === 'product' ? suggestion.boozetype : 'Company' }}</ion-badge>
+        </div>
+        <ion-badge 
+          slot="end" 
+          [color]="getStatusColor(suggestion.redyellowgreen)"
+          class="vegan-status">
+          {{ getStatusText(suggestion.redyellowgreen) }}
+        </ion-badge>
+      </ion-item>
+    </ion-list>
+  </div>
+
+  <!-- Loading spinner -->
+  <div *ngIf="isLoading" class="loading-container">
+    <ion-spinner name="crescent"></ion-spinner>
+    <p>Loading database...</p>
+  </div>
+
+  <!-- Error message -->
+  <ion-card *ngIf="errorMessage" color="danger">
+    <ion-card-content>
+      {{ errorMessage }}
+    </ion-card-content>
+  </ion-card>
+
+  <!-- Results -->
+  <div *ngIf="results.length > 0" class="results-section">
+    <ion-card *ngFor="let result of results" class="result-card">
+      <ion-card-header>
+        <div class="result-header">
+          <div class="result-main-info">
+            <ion-card-title>{{ result.productname }}</ion-card-title>
+            <ion-card-subtitle>by {{ result.companyname }}</ion-card-subtitle>
+            <ion-badge class="type-badge">{{ result.boozetype || 'Product' }}</ion-badge>
+          </div>
+          <ion-badge 
+            [color]="getStatusColor(result.redyellowgreen)"
+            class="result-vegan-status">
+            {{ getStatusText(result.redyellowgreen) }}
+          </ion-badge>
+        </div>
+      </ion-card-header>
+
+      <ion-card-content>
+        <div class="company-details">
+          <div class="company-info" *ngIf="result.country">
+            <ion-icon name="location-outline"></ion-icon>
+            <span>{{ result.city ? result.city + ', ' : '' }}{{ result.country }}</span>
+          </div>
+
+          <div class="company-info" *ngIf="result.companyname">
+            <ion-icon name="business-outline"></ion-icon>
+            <a (click)="searchCompany(result.companyname)" class="company-link">
+              View {{ result.companyname }} products
+            </a>
+          </div>
+
+          <div class="website-link" *ngIf="result.url">
+            <ion-button fill="clear" size="small" (click)="openWebsite(result.url)">
+              <ion-icon name="globe-outline" slot="start"></ion-icon>
+              Visit {{ result.companyname }} website
+            </ion-button>
+          </div>
+
+          <div class="last-updated" *ngIf="result.updatedon">
+            <small>Information last updated: {{ formatDate(result.updatedon) }}</small>
+          </div>
+
+          <div class="notes-section" *ngIf="result.notes && result.notes.trim()">
+            <h4>Additional Information:</h4>
+            <div 
+              class="notes-content"
+              [class.collapsed]="!result.notesExpanded"
+              [innerHTML]="formatNotes(result.notes)">
+            </div>
+            <ion-button 
+              fill="clear" 
+              size="small"
+              (click)="toggleNotes(result)">
+              {{ result.notesExpanded ? 'Show less' : 'Show more' }}
+            </ion-button>
+          </div>
+        </div>
+      </ion-card-content>
+    </ion-card>
+  </div>
+
+  <!-- No results message -->
+  <div *ngIf="searchQuery && !isLoading && results.length === 0 && !showSuggestions" class="no-results">
+    <ion-card>
+      <ion-card-content>
+        <div class="no-results-content">
+          <ion-icon name="search-outline" size="large"></ion-icon>
+          <h3>No results found</h3>
+          <p>Try a different search term.</p>
+        </div>
+      </ion-card-content>
+    </ion-card>
+  </div>
+</ion-content>
