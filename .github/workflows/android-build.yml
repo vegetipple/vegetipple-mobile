@@ -18,13 +18,6 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-        cache: 'npm'
-        cache-dependency-path: package-lock.json
         
     - name: Update app version (if triggered by tag or manual input)
       if: startsWith(github.ref, 'refs/tags/') || github.event.inputs.version != ''
