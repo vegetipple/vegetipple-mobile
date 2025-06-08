@@ -1,0 +1,43 @@
+#!/bin/bash
+
+# Docker Android Release Build Script
+# This script builds both debug and release APKs/AABs using Docker with Java 21
+
+set -e
+
+echo "Building Android APK and AAB (release) using Docker..."
+
+# Build Docker image
+echo "Building Docker image..."
+docker build -t vegetipple-android-builder .
+
+# Create output directory
+mkdir -p build-output
+
+# Run Docker container and build all variants
+echo "Running Android build in Docker container..."
+docker run --rm \
+    -v "$(pwd)/build-output:/output" \
+    vegetipple-android-builder \
+    bash -c "
+        # Build debug APK
+        ./android/gradlew -p android assembleDebug && \
+        cp android/app/build/outputs/apk/debug/app-debug.apk /output/ && \
+        echo 'Debug APK built successfully' && \
+        
+        # Build release APK
+        ./android/gradlew -p android assembleRelease && \
+        cp android/app/build/outputs/apk/release/app-release-unsigned.apk /output/ && \
+        echo 'Release APK built successfully' && \
+        
+        # Build release AAB
+        ./android/gradlew -p android bundleRelease && \
+        cp android/app/build/outputs/bundle/release/app-release.aab /output/ && \
+        echo 'Release AAB built successfully'
+    "
+
+echo "Build completed!"
+echo "Files available in build-output/:"
+echo "- app-debug.apk (Debug APK)"
+echo "- app-release-unsigned.apk (Release APK - needs signing)"
+echo "- app-release.aab (Release AAB - needs signing)"
