@@ -24,10 +24,9 @@ jobs:
       with:
         node-version: '20'
         cache: 'npm'
-        cache-dependency-path: vegetipple-mobile/package-lock.json
+        cache-dependency-path: package-lock.json
         
     - name: Update app version (if triggered by tag or manual input)
-      working-directory: vegetipple-mobile
       if: startsWith(github.ref, 'refs/tags/') || github.event.inputs.version != ''
       run: |
         # Extract version from tag (remove 'v' prefix)
@@ -60,7 +59,6 @@ jobs:
         fi
         
     - name: Build Android app with Docker
-      working-directory: vegetipple-mobile
       run: |
         # Build the Docker image
         docker build -t vegetipple-android-builder .
@@ -91,7 +89,6 @@ jobs:
         
     - name: Sign release APK
       if: env.KEYSTORE_BASE64 != ''
-      working-directory: vegetipple-mobile
       env:
         KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
         KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
@@ -117,14 +114,14 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: vegetipple-debug-apk
-        path: vegetipple-mobile/build-output/app-debug.apk
+        path: build-output/app-debug.apk
         retention-days: 30
         
     - name: Upload release APK (unsigned)
       uses: actions/upload-artifact@v4
       with:
         name: vegetipple-release-apk-unsigned
-        path: vegetipple-mobile/build-output/app-release-unsigned.apk
+        path: build-output/app-release-unsigned.apk
         retention-days: 30
         
     - name: Upload release APK (signed)
@@ -132,14 +129,14 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: vegetipple-release-apk-signed
-        path: vegetipple-mobile/build-output/app-release-signed.apk
+        path: build-output/app-release-signed.apk
         retention-days: 30
         
     - name: Upload release AAB
       uses: actions/upload-artifact@v4
       with:
         name: vegetipple-release-aab
-        path: vegetipple-mobile/build-output/app-release.aab
+        path: build-output/app-release.aab
         retention-days: 30
         
     - name: Create GitHub Release
@@ -185,6 +182,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: vegetipple-mobile/build-output/app-release-unsigned.apk
+        asset_path: build-output/app-release-unsigned.apk
         asset_name: vegetipple-${{ github.ref_name }}-release.apk
         asset_content_type: application/vnd.android.package-archive
