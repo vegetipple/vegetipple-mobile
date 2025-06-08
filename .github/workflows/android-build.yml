@@ -26,6 +26,39 @@ jobs:
         cache: 'npm'
         cache-dependency-path: vegetipple-mobile/package-lock.json
         
+    - name: Update app version (if triggered by tag or manual input)
+      working-directory: vegetipple-mobile
+      if: startsWith(github.ref, 'refs/tags/') || github.event.inputs.version != ''
+      run: |
+        # Extract version from tag (remove 'v' prefix)
+        if [ "${{ github.event_name }}" = "push" ]; then
+          VERSION=${GITHUB_REF#refs/tags/v}
+        else
+          VERSION=${{ github.event.inputs.version }}
+          VERSION=${VERSION#v}
+        fi
+        
+        echo "Setting version to: $VERSION"
+        
+        # Update package.json version
+        npm version $VERSION --no-git-tag-version
+        
+        # Update Android version
+        ANDROID_DIR="android/app"
+        if [ -f "$ANDROID_DIR/build.gradle" ]; then
+          # Calculate version code (assuming semantic versioning)
+          MAJOR=$(echo $VERSION | cut -d. -f1)
+          MINOR=$(echo $VERSION | cut -d. -f2)
+          PATCH=$(echo $VERSION | cut -d. -f3)
+          VERSION_CODE=$((MAJOR * 10000 + MINOR * 100 + PATCH))
+          
+          echo "Setting version code to: $VERSION_CODE"
+          
+          # Update build.gradle
+          sed -i "s/versionCode [0-9]*/versionCode $VERSION_CODE/" $ANDROID_DIR/build.gradle
+          sed -i "s/versionName \".*\"/versionName \"$VERSION\"/" $ANDROID_DIR/build.gradle
+        fi
+        
     - name: Build Android app with Docker
       working-directory: vegetipple-mobile
       run: |
@@ -55,33 +88,6 @@ jobs:
             cp android/app/build/outputs/bundle/release/app-release.aab /output/ && \
             echo 'Release AAB built successfully'
           "
-        
-    - name: Update app version
-      working-directory: vegetipple-mobile
-      run: |
-        # Extract version from tag (remove 'v' prefix)
-        VERSION=${GITHUB_REF#refs/tags/v}
-        if [ -z "$VERSION" ]; then
-          VERSION=${{ github.event.inputs.version }}
-          VERSION=${VERSION#v}
-        fi
-        
-        # Update package.json version
-        npm version $VERSION --no-git-tag-version
-        
-        # Update Android version
-        ANDROID_DIR="android/app"
-        if [ -f "$ANDROID_DIR/build.gradle" ]; then
-          # Calculate version code (assuming semantic versioning)
-          MAJOR=$(echo $VERSION | cut -d. -f1)
-          MINOR=$(echo $VERSION | cut -d. -f2)
-          PATCH=$(echo $VERSION | cut -d. -f3)
-          VERSION_CODE=$((MAJOR * 10000 + MINOR * 100 + PATCH))
-          
-          # Update build.gradle
-          sed -i "s/versionCode [0-9]*/versionCode $VERSION_CODE/" $ANDROID_DIR/build.gradle
-          sed -i "s/versionName \".*\"/versionName \"$VERSION\"/" $ANDROID_DIR/build.gradle
-        fi
         
     - name: Sign release APK
       if: env.KEYSTORE_BASE64 != ''
