@@ -1,5 +1,7 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { Browser } from '@capacitor/browser';
+import { Platform } from '@ionic/angular';
+import { Subscription } from 'rxjs';
 import { DatabaseService, SearchResult, Product } from '../services/database.service';
 
 @Component({
@@ -8,25 +10,57 @@ import { DatabaseService, SearchResult, Product } from '../services/database.ser
   styleUrls: ['home.page.scss'],
   standalone: false,
 })
-export class HomePage implements OnInit {
+export class HomePage implements OnInit, OnDestroy {
   searchQuery: string = '';
   suggestions: SearchResult[] = [];
   results: Product[] = [];
   showSuggestions: boolean = false;
   isLoading: boolean = false;
   errorMessage: string = '';
+  databaseInfo: {downloadDate: string, totalProducts: number, totalCompanies: number} | null = null;
+  private backButtonSubscription: Subscription | null = null;
+  
+  // Beverage type filters
+  selectedFilter: 'all' | 'beer' | 'wine' | 'liquor' = 'all';
+  filterOptions = [
+    { value: 'all', label: 'All', icon: 'apps-outline' },
+    { value: 'beer', label: 'Beer', icon: 'beer-outline' },
+    { value: 'wine', label: 'Wine', icon: 'wine-outline' },
+    { value: 'liquor', label: 'Liquor', icon: 'flask-outline' }
+  ];
 
-  constructor(private databaseService: DatabaseService) {}
+  constructor(
+    private databaseService: DatabaseService,
+    private platform: Platform
+  ) {}
 
   async ngOnInit() {
     try {
       this.isLoading = true;
       await this.databaseService.initializeDatabase();
+      this.databaseInfo = await this.databaseService.getDatabaseInfo();
       this.isLoading = false;
     } catch (error) {
       this.isLoading = false;
       this.errorMessage = 'Failed to load database. Please try again.';
       console.error('Database initialization failed:', error);
+    }
+
+    // Handle hardware back button on Android
+    this.backButtonSubscription = this.platform.backButton.subscribeWithPriority(10, () => {
+      if (this.searchQuery || this.showSuggestions || this.results.length > 0) {
+        // Clear search instead of going back if there's active search content
+        this.clearSearch();
+      } else {
+        // Allow default back behavior if no search is active
+        (navigator as any).app?.exitApp();
+      }
+    });
+  }
+
+  ngOnDestroy() {
+    if (this.backButtonSubscription) {
+      this.backButtonSubscription.unsubscribe();
     }
   }
 
@@ -40,13 +74,7 @@ export class HomePage implements OnInit {
       return;
     }
 
-    try {
-      this.suggestions = await this.databaseService.searchSuggestions(query);
-      this.showSuggestions = true;
-    } catch (error) {
-      console.error('Search failed:', error);
-      this.errorMessage = 'Search failed. Please try again.';
-    }
+    await this.performSearch();
   }
 
   onSearchFocus() {
@@ -63,7 +91,7 @@ export class HomePage implements OnInit {
 
   async showDetailedResults(query: string) {
     try {
-      this.results = await this.databaseService.getDetailedResults(query);
+      this.results = await this.databaseService.getDetailedResults(query, this.selectedFilter);
       // Add notesExpanded property to results for UI state
       this.results = this.results.map(result => ({
         ...result,
@@ -143,5 +171,49 @@ export class HomePage implements OnInit {
 
   private hideResults() {
     this.results = [];
+  }
+
+  clearSearch() {
+    this.searchQuery = '';
+    this.selectedFilter = 'all';
+    this.hideSuggestions();
+    this.hideResults();
+    this.errorMessage = '';
+  }
+
+  onFilterChange() {
+    // Re-run search if there's a query
+    if (this.searchQuery && this.searchQuery.length >= 2) {
+      this.performSearch();
+    }
+  }
+
+  selectFilter(value: string) {
+    this.selectedFilter = value as 'all' | 'beer' | 'wine' | 'liquor';
+    this.onFilterChange();
+  }
+
+  private async performSearch() {
+    try {
+      this.suggestions = await this.databaseService.searchSuggestions(this.searchQuery, this.selectedFilter);
+      this.showSuggestions = true;
+    } catch (error) {
+      console.error('Search failed:', error);
+      this.errorMessage = 'Search failed. Please try again.';
+    }
+  }
+
+  private getBeverageTypeKeywords(filter: 'all' | 'beer' | 'wine' | 'liquor'): string[] {
+    switch (filter) {
+      case 'beer':
+        return ['beer', 'lager', 'ale', 'stout', 'porter', 'ipa', 'pilsner', 'wheat', 'bock', 'saison'];
+      case 'wine':
+        return ['wine', 'champagne', 'prosecco', 'cava', 'sherry', 'port', 'madeira', 'vermouth', 'sake', 'mead'];
+      case 'liquor':
+        return ['whiskey', 'whisky', 'vodka', 'gin', 'rum', 'tequila', 'brandy', 'cognac', 'bourbon', 'scotch', 'liqueur', 'absinthe', 'mezcal'];
+      case 'all':
+      default:
+        return [];
+    }
   }
 }

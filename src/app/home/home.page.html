@@ -24,6 +24,22 @@
       debounce="300">
     </ion-searchbar>
 
+    <!-- Beverage type filters -->
+    <div class="filter-section">
+      <div class="filter-container">
+        <div 
+          *ngFor="let option of filterOptions" 
+          class="filter-option"
+          [class.selected]="selectedFilter === option.value"
+          (click)="selectFilter(option.value)">
+          <div class="filter-content">
+            <ion-icon [name]="option.icon" class="filter-icon"></ion-icon>
+            <span class="filter-label">{{ option.label }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Suggestions dropdown -->
     <ion-list *ngIf="showSuggestions && suggestions.length > 0" class="suggestions-list">
       <ion-item 
@@ -131,5 +147,21 @@
         </div>
       </ion-card-content>
     </ion-card>
+  </div>
+
+  <!-- Acknowledgement section -->
+  <div class="acknowledgement-section" *ngIf="databaseInfo">
+    <div class="acknowledgement-content">
+      <p class="acknowledgement-text">
+        Data downloaded: {{ formatDate(databaseInfo.downloadDate) }} • 
+        {{ databaseInfo.totalProducts }} products from {{ databaseInfo.totalCompanies }} companies
+      </p>
+      <p class="acknowledgement-text">
+        Information sourced from <a href="https://www.barnivore.com" target="_blank" rel="noopener">Barnivore.com</a>
+      </p>
+      <p class="acknowledgement-text thank-you">
+        Thanks to the Barnivore team for this valuable vegan resource 🌱
+      </p>
+    </div>
   </div>
 </ion-content>

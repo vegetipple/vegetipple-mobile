@@ -1,10 +1,14 @@
 FROM ubuntu:22.04
 
+# Build arguments
+ARG DB_VERSION=latest
+
 # Set environment variables
 ENV ANDROID_SDK_ROOT=/opt/android-sdk
 ENV ANDROID_HOME=/opt/android-sdk
 ENV PATH=${PATH}:${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin:${ANDROID_SDK_ROOT}/platform-tools:${ANDROID_SDK_ROOT}/build-tools/34.0.0
 ENV JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+ENV DB_VERSION=${DB_VERSION}
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
@@ -45,14 +49,17 @@ RUN npm install
 # Copy project files
 COPY . .
 
-# Build web assets
+# Download latest database and build web assets
 RUN npm run build
 
 # Sync Capacitor
 RUN npx cap sync android
 
-# Debug: List android directory contents
-RUN ls -la android/
+# Copy database to Android assets (required for SQLite)
+# The database needs to be in the public assets folder for Capacitor SQLite
+RUN mkdir -p android/app/src/main/assets/public/assets/databases && \
+    cp src/assets/databases/barnivore.db android/app/src/main/assets/public/assets/databases/ && \
+    cp src/assets/databases/databases.json android/app/src/main/assets/public/assets/databases/
 
 # Configure Gradle to use Java 21 and make gradlew executable if it exists
 RUN echo "org.gradle.java.home=/usr/lib/jvm/java-21-openjdk-amd64" > android/gradle.properties && \
@@ -60,5 +67,19 @@ RUN echo "org.gradle.java.home=/usr/lib/jvm/java-21-openjdk-amd64" > android/gra
     echo "android.useAndroidX=true" >> android/gradle.properties && \
     if [ -f android/gradlew ]; then chmod +x android/gradlew; echo "Made gradlew executable"; else echo "gradlew not found, will be auto-downloaded"; fi
 
-# Build Android APK
-CMD ["bash", "-c", "cd android && chmod +x gradlew 2>/dev/null || true && ./gradlew assembleDebug"]
+# Build Android APK and prepare output directory
+RUN mkdir -p /app/build-output
+RUN cd android && chmod +x gradlew 2>/dev/null || true && ./gradlew assembleDebug
+
+# Copy build outputs to a central location
+RUN cp android/app/build/outputs/apk/debug/app-debug.apk /app/build-output/ && \
+    cp -r /app/www /app/build-output/ && \
+    cp src/assets/databases/databases.json /app/build-output/database-info.json && \
+    echo "Android APK built and copied to build-output" && \
+    echo "Web build copied to build-output/www/" && \
+    echo "Database info copied to build-output/database-info.json" && \
+    ls -la /app/www/ && \
+    ls -la /app/build-output/
+
+# Default command shows build status
+CMD ["bash", "-c", "echo 'Build completed successfully!' && echo 'Web app: /app/build-output/www/' && echo 'Android APK: /app/build-output/app-debug.apk' && echo 'Build outputs:' && ls -la /app/build-output/"]

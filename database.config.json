@@ -1,0 +1,23 @@
+{
+  "repository": {
+    "owner": "vegetipple",
+    "name": "grab_barnivore"
+  },
+  "asset": {
+    "name": "barnivore.db",
+    "destinations": [
+      "src/assets/barnivore.db",
+      "src/assets/databases/barnivore.db"
+    ]
+  },
+  "version": {
+    "current": "latest",
+    "fallbackToLatest": true,
+    "autoUpdate": true
+  },
+  "versions": {
+    "latest": "Use the most recent release",
+    "v2025.06.10": "Example specific version",
+    "v2025.06.09": "Previous version example"
+  }
+}

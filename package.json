@@ -6,11 +6,17 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
-    "build": "ng build",
+    "build": "npm run download-db && ng build",
+    "build:prod": "npm run download-db && ng build --configuration production",
+    "build:no-db": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
-    "lint": "ng lint"
+    "lint": "ng lint",
+    "download-db": "node scripts/download-database.js",
+    "download-db:latest": "DB_VERSION=latest node scripts/download-database.js",
+    "download-db:version": "node scripts/download-database.js"
   },
+  "databaseVersion": "latest",
   "private": true,
   "dependencies": {
     "@angular/animations": "^19.0.0",
@@ -32,10 +38,12 @@
     "@ionic/angular": "^8.0.0",
     "ionicons": "^7.0.0",
     "rxjs": "~7.8.0",
+    "sql.js": "^1.13.0",
     "tslib": "^2.3.0",
     "zone.js": "~0.15.0"
   },
   "devDependencies": {
+    "@angular-builders/custom-webpack": "^19.0.1",
     "@angular-devkit/build-angular": "^19.0.0",
     "@angular-eslint/builder": "^19.0.0",
     "@angular-eslint/eslint-plugin": "^19.0.0",
@@ -48,6 +56,7 @@
     "@capacitor/cli": "7.3.0",
     "@ionic/angular-toolkit": "^12.0.0",
     "@types/jasmine": "~5.1.0",
+    "@types/sql.js": "^1.4.9",
     "@typescript-eslint/eslint-plugin": "^8.18.0",
     "@typescript-eslint/parser": "^8.18.0",
     "eslint": "^9.16.0",

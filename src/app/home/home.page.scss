@@ -32,13 +32,83 @@ ion-content {
     --background: white;
     --border-radius: 25px;
     --box-shadow: 0 8px 30px rgba(0,0,0,0.12);
-    margin-bottom: 0;
+    margin-bottom: 16px;
+  }
+  
+  .filter-section {
+    padding: 0 16px;
+    margin-bottom: 12px;
+    
+    .filter-container {
+      display: flex;
+      flex-direction: row;
+      gap: 8px;
+      width: 100%;
+      
+      .filter-option {
+        flex: 1;
+        background: white;
+        border: 2px solid #e1e8ed;
+        border-radius: 12px;
+        padding: 10px 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        
+        &:hover {
+          border-color: #3498db;
+          box-shadow: 0 4px 12px rgba(52, 152, 219, 0.15);
+        }
+        
+        &.selected {
+          background: linear-gradient(135deg, #3498db, #2980b9);
+          border-color: #2980b9;
+          box-shadow: 0 4px 12px rgba(52, 152, 219, 0.25);
+          
+          .filter-content {
+            .filter-icon {
+              color: white;
+            }
+            
+            .filter-label {
+              color: white;
+              font-weight: 600;
+            }
+          }
+        }
+        
+        .filter-content {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          min-height: 48px;
+          
+          .filter-icon {
+            font-size: 20px;
+            color: #7f8c8d;
+            margin-bottom: 4px;
+            transition: color 0.2s ease;
+          }
+          
+          .filter-label {
+            font-size: 11px;
+            font-weight: 500;
+            color: #2c3e50;
+            text-align: center;
+            line-height: 1;
+            transition: color 0.2s ease;
+            white-space: nowrap;
+          }
+        }
+      }
+    }
   }
 }
 
 .suggestions-list {
   position: absolute;
-  top: 100%;
+  top: calc(100% + 60px); // Account for compact filter section height
   left: 16px;
   right: 16px;
   background: white;
@@ -238,6 +308,43 @@ ion-content {
     p {
       color: #666;
       margin: 0;
+    }
+  }
+}
+
+.acknowledgement-section {
+  padding: 16px 20px;
+  margin-top: 16px;
+  
+  .acknowledgement-content {
+    text-align: center;
+    
+    .acknowledgement-text {
+      margin-bottom: 6px;
+      font-size: 12px;
+      line-height: 1.4;
+      color: #27ae60;
+      font-weight: 400;
+      
+      &:last-child {
+        margin-bottom: 0;
+      }
+      
+      a {
+        color: #2ecc71;
+        text-decoration: none;
+        font-weight: 500;
+        
+        &:hover {
+          text-decoration: underline;
+        }
+      }
+      
+      &.thank-you {
+        margin-top: 8px;
+        font-style: italic;
+        color: #2ecc71;
+      }
     }
   }
 }

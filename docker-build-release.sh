@@ -15,11 +15,15 @@ docker build -t vegetipple-android-builder .
 mkdir -p build-output
 
 # Run Docker container and build all variants
-echo "Running Android build in Docker container..."
+echo "Running builds in Docker container..."
 docker run --rm \
     -v "$(pwd)/build-output:/output" \
     vegetipple-android-builder \
     bash -c "
+        # Copy web build
+        cp -r www /output/ && \
+        echo 'Web build copied to build-output/www/' && \
+        
         cd android && chmod +x gradlew 2>/dev/null || true && \
         
         # Build debug APK
@@ -40,6 +44,7 @@ docker run --rm \
 
 echo "Build completed!"
 echo "Files available in build-output/:"
+echo "- www/ (Web application)"
 echo "- app-debug.apk (Debug APK)"
 echo "- app-release-unsigned.apk (Release APK - needs signing)"
 echo "- app-release.aab (Release AAB - needs signing)"
