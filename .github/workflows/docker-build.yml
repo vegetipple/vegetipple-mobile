@@ -1,0 +1,103 @@
+name: Docker Build Vegetipple Mobile
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      database_version:
+        description: 'Database version to use (e.g., v2025.06.10 or latest)'
+        required: false
+        default: 'latest'
+      build_target:
+        description: 'Build target (web, android, or both)'
+        required: false
+        default: 'both'
+        type: choice
+        options:
+        - web
+        - android
+        - both
+
+jobs:
+  docker-build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Build with Docker
+      run: |
+        docker build \
+          --build-arg DB_VERSION=${{ github.event.inputs.database_version || 'latest' }} \
+          --tag vegetipple-mobile:${{ github.sha }} \
+          .
+      
+    - name: Extract build artifacts
+      run: |
+        # Create container to extract files
+        docker create --name extract vegetipple-mobile:${{ github.sha }}
+        
+        # Extract web build
+        docker cp extract:/app/build-output ./build-output
+        
+        # Clean up container
+        docker rm extract
+        
+    - name: Upload web build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: web-build-${{ github.sha }}
+        path: build-output/www/
+        
+    - name: Upload Android APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: android-apk-${{ github.sha }}
+        path: build-output/app-debug.apk
+        
+    - name: Upload database metadata
+      uses: actions/upload-artifact@v4
+      with:
+        name: database-info-${{ github.sha }}
+        path: build-output/database-info.json
+        if-no-files-found: ignore
+
+  # Optional: Push to registry if needed
+  push-image:
+    runs-on: ubuntu-latest
+    needs: docker-build
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Login to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: true
+        tags: |
+          ghcr.io/${{ github.repository }}:latest
+          ghcr.io/${{ github.repository }}:${{ github.sha }}
+        build-args: |
+          DB_VERSION=${{ github.event.inputs.database_version || 'latest' }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
