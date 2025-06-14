@@ -58,6 +58,9 @@ COPY . .
 # Download latest database and build web assets
 RUN npm run build
 
+# Add Android platform (generates android/ directory)
+RUN npx cap add android
+
 # Sync Capacitor
 RUN npx cap sync android
 
