@@ -12,7 +12,15 @@ coverage
 .DS_Store
 Thumbs.db
 build-output/
-android/app/build/
-android/build/
-android/.gradle/
 *.log
+
+# Capacitor generated platforms (will be generated during build)
+android/
+ios/
+
+# Build output (will be generated during build)
+www/
+dist/
+
+# Downloaded database files (will be downloaded during build)
+src/assets/databases/
