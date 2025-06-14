@@ -69,11 +69,11 @@ jobs:
         path: build-output/database-info.json
         if-no-files-found: ignore
 
-  # Optional: Push to registry if needed
+  # Optional: Push to registry if needed (disabled for now)
   push-image:
     runs-on: ubuntu-latest
     needs: docker-build
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    if: false  # Disabled - we only need artifacts, not registry push
     
     steps:
     - name: Checkout code
