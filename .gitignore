@@ -113,3 +113,31 @@ GoogleService-Info.plist
 # System files
 .DS_Store
 Thumbs.db
+
+# Gradle files
+.gradle/
+gradle/
+gradlew
+gradlew.bat
+
+# Android specific
+android/local.properties
+android/app/release/
+android/app/debug/
+*.apk
+*.aab
+
+# Icons and favicons (generated assets)
+*.ico
+*-chrome-*.png
+favicon-*.png
+
+# Generated logos
+vegetipple-logo.jpg
+
+# Downloaded database files
+src/assets/databases/
+
+# Capacitor generated platforms
+android/
+ios/

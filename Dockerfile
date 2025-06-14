@@ -20,6 +20,12 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
+# Install modern Gradle
+RUN wget https://services.gradle.org/distributions/gradle-8.5-bin.zip -P /tmp \
+    && unzip -d /opt/gradle /tmp/gradle-8.5-bin.zip \
+    && ln -s /opt/gradle/gradle-8.5/bin/gradle /usr/bin/gradle \
+    && rm /tmp/gradle-8.5-bin.zip
+
 # Install Node.js 20
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y nodejs
@@ -69,7 +75,13 @@ RUN echo "org.gradle.java.home=/usr/lib/jvm/java-21-openjdk-amd64" > android/gra
 
 # Build Android APK and prepare output directory
 RUN mkdir -p /app/build-output
-RUN cd android && chmod +x gradlew 2>/dev/null || true && ./gradlew assembleDebug
+RUN cd android && \
+    # Generate gradle wrapper if it doesn't exist
+    if [ ! -f gradlew ]; then \
+        gradle wrapper --gradle-version=8.5 --distribution-type=bin; \
+    fi && \
+    chmod +x gradlew && \
+    ./gradlew assembleDebug
 
 # Copy build outputs to a central location
 RUN cp android/app/build/outputs/apk/debug/app-debug.apk /app/build-output/ && \
